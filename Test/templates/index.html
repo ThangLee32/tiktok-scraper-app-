@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Truy xuất dữ liệu Fanpage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <h2 class="mb-4">Truy xuất dữ liệu từ nhiều Fanpage Facebook</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="page_ids" class="form-label">Nhập danh sách Fanpage ID (cách nhau bằng dấu phẩy):</label>
+            <input type="text" class="form-control" id="page_ids" name="page_ids" placeholder="vd: coca-cola, pepsi">
+        </div>
+        <button type="submit" class="btn btn-primary">Truy xuất dữ liệu</button>
+    </form>
+
+    {% if results %}
+    <hr>
+    <h4 class="mt-4">Kết quả truy xuất:</h4>
+    <div class="row">
+        {% for page in results %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <img src="{{ page.picture.data.url }}" class="card-img-top" alt="Ảnh đại diện">
+                <div class="card-body">
+                    <h5 class="card-title">{{ page.name }}</h5>
+                    <p class="card-text"><strong>Số người theo dõi:</strong> {{ page.fan_count }}</p>
+                    <p class="card-text"><strong>Mô tả:</strong> {{ page.about }}</p>
+                    <p class="card-text"><strong>Bài viết gần đây:</strong><br>
+                        {% if page.posts.data %}
+                            <ul>
+                            {% for post in page.posts.data %}
+                                <li>{{ post.message }} <br><small>{{ post.created_time }}</small></li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            Không có bài viết nào.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h5>Biểu đồ số lượng người theo dõi:</h5>
+    <img src="{{ chart_path }}" class="img-fluid mb-3" alt="Biểu đồ">
+    <a href="{{ url_for('download_file', filename='fan_data.xlsx') }}" class="btn btn-success">Tải file Excel</a>
+    <a href="{{ url_for('download_file', filename='fan_chart.png') }}" class="btn btn-secondary">Tải biểu đồ PNG</a>
+    {% endif %}
+</div>
+</body>
+</html>

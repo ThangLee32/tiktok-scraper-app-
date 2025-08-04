@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Profile Scraper</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); max-width: 900px; margin: auto; }
+        h1 { color: #333; text-align: center; margin-bottom: 25px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        textarea, input[type="file"] { width: calc(100% - 20px); padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .button-group { display: flex; justify-content: space-around; gap: 10px; margin-top: 20px; }
+        button { background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; flex: 1; }
+        button:hover { background-color: #45a049; }
+        #results-container { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .error { color: red; font-weight: bold; }
+        .loading { text-align: center; margin-top: 20px; font-style: italic; color: #555; }
+        .note { font-size: 0.9em; color: #777; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TikTok Profile Data Scraper</h1>
+
+        <form id="tiktokForm" enctype="multipart/form-data">
+            <label for="usernames">Nhập tên người dùng TikTok (mỗi dòng một tên hoặc cách nhau bằng dấu phẩy):</label>
+            <textarea id="usernames" name="usernames" rows="8" placeholder="ví dụ: user1&#10;user2, user3&#10;@user4"></textarea>
+
+            <label for="file">Hoặc tải lên tệp .txt chứa danh sách tên người dùng:</label>
+            <input type="file" id="file" name="file" accept=".txt">
+
+            <div class="button-group">
+                <button type="submit" id="getDataButton">Lấy Dữ liệu (Hiển thị Bảng)</button>
+                <button type="button" id="downloadCsvButton">Tải xuống CSV</button>
+            </div>
+            <p class="note">Lưu ý: Quá trình thu thập dữ liệu có thể mất một thời gian tùy thuộc vào số lượng tài khoản.</p>
+        </form>
+
+        <div id="loading" class="loading" style="display: none;">
+            Đang thu thập dữ liệu... Vui lòng chờ.
+        </div>
+
+        <div id="results-container">
+            <h2>Kết quả:</h2>
+            <table id="results-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Followers</th>
+                        <th>Likes</th>
+                        <th>Video Count</th>
+                        <th>Most Viewed Video Link</th>
+                        <th>Most Viewed Video Views</th>
+                        <th>Success</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <p id="no-results" style="display: none;">Không có kết quả nào để hiển thị.</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('getDataButton').addEventListener('click', async function(event) {
+            event.preventDefault(); // Ngăn chặn hành vi gửi form mặc định
+
+            document.getElementById('loading').style.display = 'block'; // Hiển thị thông báo tải
+            document.getElementById('results-table').style.display = 'none';
+            document.getElementById('results-table').querySelector('tbody').innerHTML = ''; // Xóa nội dung cũ
+            document.getElementById('no-results').style.display = 'none';
+
+            const form = document.getElementById('tiktokForm');
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/get_tiktok_data?format=json', { // Luôn yêu cầu JSON cho việc hiển thị bảng
+                    method: 'POST',
+                    body: formData
+                });
+
+                document.getElementById('loading').style.display = 'none'; // Ẩn thông báo tải
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.length > 0) {
+                        const tbody = document.getElementById('results-table').querySelector('tbody');
+                        data.forEach(item => {
+                            const row = tbody.insertRow();
+                            row.insertCell().textContent = item.username || 'N/A';
+                            row.insertCell().textContent = item.followers || 'N/A';
+                            row.insertCell().textContent = item.likes || 'N/A';
+                            row.insertCell().textContent = item.video_count || 'N/A';
+                            const linkCell = row.insertCell();
+                            if (item.most_viewed_video_link && item.most_viewed_video_link !== 'N/A') {
+                                const a = document.createElement('a');
+                                a.href = item.most_viewed_video_link;
+                                a.textContent = item.most_viewed_video_link;
+                                a.target = "_blank"; // Mở trong tab mới
+                                linkCell.appendChild(a);
+                            } else {
+                                linkCell.textContent = 'N/A';
+                            }
+                            row.insertCell().textContent = item.most_viewed_video_views || 'N/A';
+                            row.insertCell().textContent = item.success ? 'True' : 'False';
+                            const errorCell = row.insertCell();
+                            errorCell.textContent = item.error || 'N/A';
+                            if (item.error && item.error !== 'N/A') {
+                                errorCell.classList.add('error');
+                            }
+                        });
+                        document.getElementById('results-table').style.display = 'table'; // Hiển thị bảng
+                    } else {
+                        document.getElementById('no-results').textContent = 'Không có kết quả nào để hiển thị.';
+                        document.getElementById('no-results').style.display = 'block';
+                    }
+                } else {
+                    document.getElementById('no-results').textContent = 'Lỗi: ' + (data.error || 'Không rõ lỗi');
+                    document.getElementById('no-results').style.display = 'block';
+                    document.getElementById('no-results').classList.add('error');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('no-results').textContent = 'Đã xảy ra lỗi khi gửi yêu cầu: ' + error.message;
+                document.getElementById('no-results').style.display = 'block';
+                document.getElementById('no-results').classList.add('error');
+            }
+        });
+
+        document.getElementById('downloadCsvButton').addEventListener('click', async function() {
+            document.getElementById('loading').style.display = 'block'; // Hiển thị thông báo tải
+            document.getElementById('results-table').style.display = 'none';
+            document.getElementById('results-table').querySelector('tbody').innerHTML = '';
+            document.getElementById('no-results').style.display = 'none';
+
+            const form = document.getElementById('tiktokForm');
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/get_tiktok_data?format=csv', { // Yêu cầu định dạng CSV
+                    method: 'POST',
+                    body: formData
+                });
+
+                document.getElementById('loading').style.display = 'none'; // Ẩn thông báo tải
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'tiktok_data.csv'; // Tên file
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    alert('File CSV đã được tải xuống.');
+                    document.getElementById('no-results').textContent = 'File CSV đã được tải xuống.';
+                    document.getElementById('no-results').style.display = 'block';
+                } else {
+                    const errorData = await response.json();
+                    document.getElementById('no-results').textContent = 'Lỗi khi tải xuống CSV: ' + (errorData.error || 'Không rõ lỗi');
+                    document.getElementById('no-results').style.display = 'block';
+                    document.getElementById('no-results').classList.add('error');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('no-results').textContent = 'Đã xảy ra lỗi khi tải xuống CSV: ' + error.message;
+                document.getElementById('no-results').style.display = 'block';
+                document.getElementById('no-results').classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>
