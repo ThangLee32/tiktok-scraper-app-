@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bộ đếm người theo dõi TikTok</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #e91e63; /* Màu hồng TikTok */
+        }
+        .input-group {
+            display: flex;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        .input-group input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .input-group button {
+            padding: 10px 20px;
+            background-color: #e91e63; /* Màu hồng TikTok */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        .input-group button:hover {
+            background-color: #c2185b;
+        }
+        #resultsTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #resultsTable th, #resultsTable td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        #resultsTable th {
+            background-color: #f2f2f2;
+        }
+        .loading {
+            text-align: center;
+            padding: 10px;
+            font-style: italic;
+            color: #666;
+        }
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bộ Đếm Người Theo Dõi TikTok Trực Tiếp</h1>
+
+        <div class="input-group">
+            <input type="text" id="usernameInput" placeholder="Nhập tên người dùng TikTok (ví dụ: pnj_kv6_truelove)">
+            <button onclick="addUsername()">Thêm vào danh sách</button>
+        </div>
+
+        <div id="loadingMessage" class="loading" style="display: none;">Đang lấy dữ liệu... Vui lòng chờ.</div>
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th>Tên người dùng</th>
+                    <th>Số người theo dõi</th>
+                    <th>Thời gian cập nhật</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Lưu trữ các user đã thêm để tránh trùng lặp và cập nhật liên tục
+        let trackingUsers = {}; // {username: {followers: "...", lastUpdated: "...", intervalId: null}}
+
+        async function getFollowers(username) {
+            try {
+                const response = await fetch('/get_followers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username }),
+                });
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Lỗi khi gọi API:', error);
+                return { username: username, followers: 'Lỗi kết nối.', success: false };
+            }
+        }
+
+        async function updateTable(username) {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            const data = await getFollowers(username);
+
+            document.getElementById('loadingMessage').style.display = 'none';
+
+            if (data.success) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString() + ' ' + now.toLocaleDateString();
+
+                // Cập nhật hoặc thêm hàng vào bảng
+                let row = document.getElementById(`row-${username}`);
+                if (!row) {
+                    const tbody = document.querySelector('#resultsTable tbody');
+                    row = tbody.insertRow();
+                    row.id = `row-${username}`;
+                    row.insertCell(0).textContent = username; // Cột tên người dùng
+                    row.insertCell(1); // Cột người theo dõi
+                    row.insertCell(2); // Cột thời gian cập nhật
+                }
+                row.cells[1].textContent = data.followers;
+                row.cells[2].textContent = timeString;
+
+                trackingUsers[username] = {
+                    followers: data.followers,
+                    lastUpdated: timeString,
+                    // Giữ nguyên intervalId nếu đã có
+                    intervalId: trackingUsers[username] ? trackingUsers[username].intervalId : null
+                };
+
+            } else {
+                let row = document.getElementById(`row-${username}`);
+                if (!row) {
+                    const tbody = document.querySelector('#resultsTable tbody');
+                    row = tbody.insertRow();
+                    row.id = `row-${username}`;
+                    row.insertCell(0).textContent = username;
+                    row.insertCell(1);
+                    row.insertCell(2);
+                }
+                row.cells[1].textContent = data.followers; // Hiển thị thông báo lỗi từ backend
+                row.cells[2].textContent = new Date().toLocaleTimeString();
+
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = `Không thể lấy dữ liệu cho ${username}: ${data.followers}`;
+            }
+        }
+
+        function addUsername() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+
+            if (username && !trackingUsers[username]) {
+                usernameInput.value = ''; // Xóa input sau khi thêm
+
+                // Thêm ngay lập tức vào bảng với trạng thái "Đang tải..."
+                const tbody = document.querySelector('#resultsTable tbody');
+                let row = tbody.insertRow();
+                row.id = `row-${username}`;
+                row.insertCell(0).textContent = username;
+                row.insertCell(1).textContent = 'Đang tải...';
+                row.insertCell(2).textContent = new Date().toLocaleTimeString();
+
+                // Bắt đầu cập nhật lần đầu
+                updateTable(username);
+
+                // Thiết lập cập nhật tự động mỗi 60 giây (hoặc thời gian bạn muốn)
+                const intervalId = setInterval(() => updateTable(username), 60000); // 60 giây
+                trackingUsers[username] = {
+                    followers: 'Đang tải...',
+                    lastUpdated: '',
+                    intervalId: intervalId
+                };
+            } else if (trackingUsers[username]) {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = `Tên người dùng "${username}" đã có trong danh sách.`;
+            }
+        }
+
+        // Tùy chọn: Xử lý khi nhấn Enter trong ô input
+        document.getElementById('usernameInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                addUsername();
+            }
+        });
+    </script>
+</body>
+</html>

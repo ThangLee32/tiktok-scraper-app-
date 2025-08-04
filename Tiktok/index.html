@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bộ Đếm TikTok</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            color: #333;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px 60px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: fadeIn 1s ease-out;
+        }
+        h1 {
+            color: #fe2c55; /* Màu TikTok */
+            margin-bottom: 25px;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        .stat-item {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2em;
+            border: 1px solid #eee;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #555;
+            text-align: left;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            color: #333;
+            font-weight: bolder;
+            text-align: right;
+        }
+        .loading-text {
+            color: #888;
+            font-size: 1.1em;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .last-updated {
+            font-size: 0.9em;
+            color: #777;
+            margin-top: 20px;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .stat-value.pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        /* Nút cập nhật */
+        .refresh-button {
+            background-color: #007bff; /* Màu xanh dương */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-top: 20px;
+        }
+        .refresh-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .refresh-button:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bộ Đếm TikTok</h1>
+        <div class="stat-item">
+            <span class="stat-label">Lượt theo dõi:</span>
+            <span class="stat-value" id="followerCount">Đang tải...</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Tổng lượt thích:</span>
+            <span class="stat-value" id="heartCount">Đang tải...</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Số lượng video:</span>
+            <span class="stat-value" id="videoCount">Đang tải...</span>
+        </div>
+        <p class="last-updated" id="lastUpdated">Cập nhật lần cuối: Chưa có dữ liệu</p>
+        <button class="refresh-button" onclick="fetchTikTokStats()">Cập nhật ngay</button>
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        const followerCountElem = document.getElementById('followerCount');
+        const heartCountElem = document.getElementById('heartCount');
+        const videoCountElem = document.getElementById('videoCount');
+        const lastUpdatedElem = document.getElementById('lastUpdated');
+        const errorMessageElem = document.getElementById('errorMessage');
+
+        async function fetchTikTokStats() {
+            try {
+                errorMessageElem.textContent = ''; // Xóa thông báo lỗi cũ
+                // Hiển thị trạng thái tải
+                followerCountElem.textContent = 'Đang tải...';
+                heartCountElem.textContent = 'Đang tải...';
+                videoCountElem.textContent = 'Đang tải...';
+                lastUpdatedElem.textContent = 'Cập nhật lần cuối: Đang tải...';
+
+                const response = await fetch('tiktok_stats.json?' + new Date().getTime()); // Thêm timestamp để tránh cache
+                
+                if (!response.ok) {
+                    throw new Error(`Không thể tải dữ liệu: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+
+                // Kiểm tra nếu dữ liệu thực sự thay đổi trước khi cập nhật DOM
+                const currentFollower = parseInt(followerCountElem.textContent.replace(/[^0-9]/g, '')) || 0;
+                const currentHeart = parseInt(heartCountElem.textContent.replace(/[^0-9]/g, '')) || 0;
+                const currentVideo = parseInt(videoCountElem.textContent.replace(/[^0-9]/g, '')) || 0;
+
+                if (data.followerCount !== currentFollower) {
+                    followerCountElem.textContent = data.followerCount.toLocaleString('vi-VN');
+                    followerCountElem.classList.add('pulse');
+                }
+                if (data.heartCount !== currentHeart) {
+                    heartCountElem.textContent = data.heartCount.toLocaleString('vi-VN');
+                    heartCountElem.classList.add('pulse');
+                }
+                if (data.videoCount !== currentVideo) {
+                    videoCountElem.textContent = data.videoCount.toLocaleString('vi-VN');
+                    videoCountElem.classList.add('pulse');
+                }
+                
+                // Xóa animation class sau khi hoàn thành
+                setTimeout(() => {
+                    followerCountElem.classList.remove('pulse');
+                    heartCountElem.classList.remove('pulse');
+                    videoCountElem.classList.remove('pulse');
+                }, 500); // Thời gian trùng với thời gian animation
+
+                const now = new Date();
+                lastUpdatedElem.textContent = `Cập nhật lần cuối: ${now.toLocaleTimeString('vi-VN')} ngày ${now.toLocaleDateString('vi-VN')}`;
+
+            } catch (error) {
+                console.error("Lỗi khi tải số liệu TikTok:", error);
+                errorMessageElem.textContent = `Lỗi: ${error.message}. Vui lòng chạy lại script Python.`;
+                followerCountElem.textContent = 'Không có dữ liệu';
+                heartCountElem.textContent = 'Không có dữ liệu';
+                videoCountElem.textContent = 'Không có dữ liệu';
+                lastUpdatedElem.textContent = 'Cập nhật lần cuối: Lỗi';
+            }
+        }
+
+        // Tải số liệu khi trang được tải lần đầu
+        document.addEventListener('DOMContentLoaded', fetchTikTokStats);
+
+        // Tự động cập nhật sau mỗi 30 giây (30000 mili giây)
+        // setInterval(fetchTikTokStats, 30000); 
+        // Tôi sẽ không tự động cập nhật trong môi trường cục bộ vì dữ liệu JSON chỉ thay đổi khi bạn chạy lại script Python.
+        // Tuy nhiên, nếu bạn triển khai một backend thực sự để cập nhật JSON, bạn có thể bật dòng này.
+    </script>
+</body>
+</html>
