@@ -19,7 +19,7 @@ def get_undetected_driver():
 
     # CHỈ ĐỊNH ĐƯỜNG DẪN MỚI CỦA CHROMIUM
     return uc.Chrome(
-        browser_executable_path='/usr/bin/chromium-browser',
+         browser_executable_path='/usr/bin/chromium',
         options=options
     )
 
