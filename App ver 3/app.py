@@ -7,12 +7,11 @@ import os
 import io
 import time
 import re
+import undetected_chromedriver as uc
 
 app = Flask(__name__)
 
-# Lấy đường dẫn chromedriver từ biến môi trường hoặc mặc định
-CHROMEDRIVER_PATH = os.environ.get('CHROMEDRIVER_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver.exe'))
-
+# --- Hàm lấy dữ liệu TikTok ---
 def parse_views_string(views_str):
     """Chuyển đổi chuỗi lượt xem (ví dụ: '1.2M', '2.5K') thành số nguyên."""
     views_str = views_str.upper().strip()
@@ -45,11 +44,8 @@ def get_tiktok_data_selenium(username):
     }
 
     try:
-        # Cập nhật: Sử dụng undetected-chromedriver để tránh bị phát hiện
-        import undetected_chromedriver as uc
         options = uc.ChromeOptions()
         # Vô hiệu hóa chế độ ẩn danh để bạn có thể quan sát
-        # Sau khi mọi thứ hoạt động, bạn có thể kích hoạt lại bằng cách thêm dòng dưới đây:
         # options.add_argument('--headless')
         driver = uc.Chrome(options=options, use_subprocess=True)
         
@@ -64,13 +60,13 @@ def get_tiktok_data_selenium(username):
         
         # Lấy số người theo dõi và lượt thích
         try:
-            followers_element = wait.until(EC.presence_of_element_located((By.XPATH, '//span[@data-e2e="followers"]/preceding-sibling::strong')))
+            followers_element = wait.until(EC.presence_of_element_located((By.XPATH, '//strong[@data-e2e="followers-count"]')))
             data['followers'] = followers_element.text.strip()
         except TimeoutException:
             print(f"Không tìm thấy phần tử người theo dõi cho {username}.")
 
         try:
-            likes_element = wait.until(EC.presence_of_element_located((By.XPATH, '//span[@data-e2e="likes"]/preceding-sibling::strong')))
+            likes_element = wait.until(EC.presence_of_element_located((By.XPATH, '//strong[@data-e2e="likes-count"]')))
             data['likes'] = likes_element.text.strip()
         except TimeoutException:
             print(f"Không tìm thấy phần tử lượt thích cho {username}.")
