@@ -17,16 +17,17 @@ def get_undetected_driver():
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    # CHỈ ĐỊNH ĐƯỜNG DẪN MỚI
-    # Đây là đường dẫn đến Chromium đã được cài đặt bởi lệnh build mới
+    # CHỈ ĐỊNH ĐƯỜNG DẪN MỚI CỦA CHROMIUM
     return uc.Chrome(
-        browser_executable_path='/opt/render/project/.render/chromium/chrome',
+        browser_executable_path='/usr/bin/chromium-browser',
         options=options
     )
 
 # Sử dụng hàm này để tạo driver
 driver = get_undetected_driver()
 driver.get("https://tiktok-scraper-app-.onrender.com/") 
+# Thay thế URL trên bằng URL của bạn nếu cần
+# ... Các đoạn mã khác của bạn sẽ nằm ở đây
 
 app = Flask(__name__)
 
