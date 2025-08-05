@@ -26,7 +26,7 @@ def parse_views_string(views_str):
     except ValueError:
         return 0
 
-def get_tiktok_data_selenium(username):
+ddef get_tiktok_data_selenium(username):
     """
     Sử dụng Selenium để lấy dữ liệu TikTok bao gồm người theo dõi, lượt thích,
     tổng số video và video có lượt xem cao nhất.
@@ -43,6 +43,7 @@ def get_tiktok_data_selenium(username):
     }
 
     try:
+        print(f"Bắt đầu lấy dữ liệu cho người dùng: {username}")
         options = uc.ChromeOptions()
         
         # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
@@ -50,15 +51,29 @@ def get_tiktok_data_selenium(username):
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
         
-        # Cấu hình đường dẫn Chrome cho môi trường Render một cách an toàn
-        chrome_binary_path = os.environ.get('GOOGLE_CHROME_BIN')
-        if chrome_binary_path:
-            options.binary_location = chrome_binary_path
-        else:
-            # Nếu biến môi trường không tồn tại, in ra log để gỡ lỗi và dừng lại
-            print("Lỗi: Biến môi trường GOOGLE_CHROME_BIN không được thiết lập.")
-            data['error'] = 'Cấu hình server không chính xác: thiếu biến môi trường GOOGLE_CHROME_BIN.'
-            return data
+        # Chỉ định đường dẫn tới tệp thực thi của Chrome trên Render
+        # Đây là giải pháp đáng tin cậy nhất để khắc phục lỗi "Could not determine browser executable."
+        options.binary_location = "/usr/bin/google-chrome-stable"
+        
+        driver = uc.Chrome(options=options)
+        
+        url = f"https://www.tiktok.com/@{username}"
+        driver.get(url)
+
+        # Chờ trang tải hoàn tất và tìm phần tử chính
+        wait = WebDriverWait(driver, 20)
+        
+        # ... (các đoạn mã khác)
+        
+    except Exception as e:
+        data['error'] = f"Lỗi không xác định: {e}"
+        data['success'] = False
+        print(f"Lỗi chung khi lấy dữ liệu cho {username}: {e}")
+    finally:
+        if driver:
+            driver.quit()
+            print(f"Đã đóng trình duyệt cho {username}.")
+    return data
 
         driver = uc.Chrome(options=options)
         
