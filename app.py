@@ -45,16 +45,17 @@ def get_tiktok_data_selenium(username):
     }
 
     try:
-    import undetected_chromedriver as uc
-    options = uc.ChromeOptions()
-
-    # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
-    options.add_argument('--headless')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--no-sandbox')
-
-    # Bỏ qua việc thiết lập binary_location để nó tự động tìm
-    driver = uc.Chrome(options=options)
+        # Khối code này phải được thụt lề vào trong
+        import undetected_chromedriver as uc
+        options = uc.ChromeOptions()
+        
+        # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
+        options.add_argument('--headless')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--no-sandbox')
+        
+        # Bỏ qua việc thiết lập binary_location để nó tự động tìm
+        driver = uc.Chrome(options=options)
         
         url = f"https://www.tiktok.com/@{username}"
         driver.get(url)
