@@ -45,7 +45,6 @@ def get_tiktok_data_selenium(username):
     }
 
     try:
-        # Khối code này phải được thụt lề vào trong
         import undetected_chromedriver as uc
         options = uc.ChromeOptions()
         
