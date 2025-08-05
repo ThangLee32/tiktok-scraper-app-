@@ -27,15 +27,13 @@ WORKDIR /app
 # Sao chép các tệp cần thiết vào container
 COPY requirements.txt .
 COPY app.py .
-
-# Tạo thư mục 'templates' và sao chép tệp 'index.html'
 RUN mkdir -p templates
 COPY templates/index.html ./templates/
 
 # Cài đặt các thư viện Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Đặt biến môi trường cho đường dẫn Chrome
+# Đặt biến môi trường
 ENV PATH="/usr/bin:${PATH}"
 ENV CHROME_EXECUTABLE_PATH="/usr/bin/google-chrome"
 ENV CHROME_DRIVER_PATH="/usr/bin/chromedriver"
@@ -43,5 +41,5 @@ ENV CHROME_DRIVER_PATH="/usr/bin/chromedriver"
 # Expose cổng 5000
 EXPOSE 5000
 
-# Lệnh khởi động ứng dụng
-CMD ["python", "app.py"]
+# Lệnh khởi động ứng dụng bằng Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
