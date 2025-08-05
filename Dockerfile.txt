@@ -2,7 +2,6 @@
 FROM python:3.9-slim
 
 # Cài đặt các gói phụ thuộc hệ thống cần thiết cho Chrome
-# `libglib2.0-0` và `libnss3` thường là những gói chính.
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -22,23 +21,26 @@ RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.d
 RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get install -f -y
 RUN rm google-chrome-stable_current_amd64.deb
 
-# Tạo thư mục làm việc trong container
+# Đặt thư mục làm việc trong container
 WORKDIR /app
 
 # Sao chép các tệp cần thiết vào container
 COPY requirements.txt .
 COPY app.py .
-COPY index.html ./templates/index.html
+
+# Tạo thư mục 'templates' và sao chép tệp 'index.html'
+RUN mkdir -p templates
+COPY templates/index.html ./templates/
 
 # Cài đặt các thư viện Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Đặt biến môi trường
+# Đặt biến môi trường cho đường dẫn Chrome
 ENV PATH="/usr/bin:${PATH}"
 ENV CHROME_EXECUTABLE_PATH="/usr/bin/google-chrome"
 ENV CHROME_DRIVER_PATH="/usr/bin/chromedriver"
 
-# Expose cổng 5000 để Render có thể truy cập
+# Expose cổng 5000
 EXPOSE 5000
 
 # Lệnh khởi động ứng dụng

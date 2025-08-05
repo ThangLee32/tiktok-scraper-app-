@@ -49,45 +49,34 @@ def get_tiktok_data_selenium(username):
         print(f"Bắt đầu lấy dữ liệu cho người dùng: {username}")
         options = uc.ChromeOptions()
         
-        # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
         options.add_argument('--headless')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
-        options.add_argument('--disable-gpu') # Bổ sung
-        options.add_argument('--disable-extensions') # Bổ sung
+        options.add_argument('--disable-gpu')
+        options.add_argument('--disable-extensions')
         
-        # Chỉ định đường dẫn tới tệp thực thi của Chrome trong container
         options.binary_location = CHROME_EXECUTABLE_PATH
         
-        # undetectable-chromedriver sẽ tự tìm chromedriver tương thích
         driver = uc.Chrome(options=options)
         
         url = f"https://www.tiktok.com/@{username}"
         driver.get(url)
 
-        # Chờ trang tải hoàn tất và tìm phần tử chính
-        wait = WebDriverWait(driver, 30) # Tăng thời gian chờ lên 30s
-        
-        # --- LẤY DỮ LIỆU ---
+        wait = WebDriverWait(driver, 30)
         
         try:
-            # Chờ phần tử chứa toàn bộ thông tin
             profile_stats_container = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@data-e2e="user-stats"]')))
             
-            # Lấy người theo dõi
             followers_element = profile_stats_container.find_element(By.XPATH, './/strong[@data-e2e="followers-count"]')
             data['followers'] = followers_element.text.strip()
             
-            # Lấy lượt thích
             likes_element = profile_stats_container.find_element(By.XPATH, './/strong[@data-e2e="likes-count"]')
             data['likes'] = likes_element.text.strip()
 
             print(f"Đã tìm thấy người theo dõi và lượt thích cho {username}.")
 
         except (TimeoutException, NoSuchElementException):
-            # Kiểm tra xem có phải trang không tồn tại hay không
             try:
-                # Tìm phần tử cho biết trang không tồn tại
                 driver.find_element(By.XPATH, '//h2[contains(text(), "Couldn\'t find this account")]')
                 data['error'] = f"Tên người dùng TikTok '{username}' không tồn tại."
                 print(f"Lỗi: Tên người dùng '{username}' không tồn tại.")
@@ -97,20 +86,17 @@ def get_tiktok_data_selenium(username):
                 print(f"Lỗi: Không tìm thấy phần tử chính cho '{username}' sau 30s.")
                 return data
         
-        # --- LẤY DỮ LIỆU VIDEO ---
-        # Cuộn trang cho đến khi không còn nội dung mới được tải
         last_height = driver.execute_script("return document.body.scrollHeight")
         scroll_count = 0
-        while scroll_count < 5: # Giảm số lần cuộn để tối ưu hiệu suất và thời gian
+        while scroll_count < 5:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2) # Giảm thời gian chờ giữa các lần cuộn
+            time.sleep(2)
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 break
             last_height = new_height
             scroll_count += 1
         
-        # Tìm tất cả các phần tử container video
         video_containers = driver.find_elements(By.XPATH, '//div[@data-e2e="user-post-item"]')
         data['video_count'] = len(video_containers)
         
@@ -120,7 +106,6 @@ def get_tiktok_data_selenium(username):
             
             for container in video_containers:
                 try:
-                    # Tìm thẻ <a> và thẻ lượt xem bên trong mỗi container
                     video_link_element = container.find_element(By.XPATH, './/a[contains(@href, "/video/")]')
                     views_element = container.find_element(By.XPATH, './/strong[@data-e2e="video-views"]')
                     
@@ -132,7 +117,6 @@ def get_tiktok_data_selenium(username):
                         most_viewed_url = video_link_element.get_attribute('href')
                         
                 except NoSuchElementException:
-                    # Bỏ qua nếu không tìm thấy video link hoặc views element trong container này
                     continue
                 except Exception as e:
                     print(f"Lỗi khi lấy dữ liệu lượt xem cho một phần tử video: {e}")
