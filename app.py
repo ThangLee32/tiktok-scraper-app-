@@ -3,7 +3,7 @@ import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
+from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException, StaleElementReferenceException
 import time
 import os
 import re
@@ -20,7 +20,11 @@ def parse_views_string(views_str):
         return int(float(views_str.replace('k', '')) * 1000)
     elif 'm' in views_str:
         return int(float(views_str.replace('m', '')) * 1000000)
-    return int(views_str.replace(',', ''))
+    try:
+        # Xử lý trường hợp không có K hoặc M
+        return int(views_str.replace(',', ''))
+    except ValueError:
+        return 0
 
 def get_tiktok_data_selenium(username):
     """
@@ -39,6 +43,7 @@ def get_tiktok_data_selenium(username):
     }
 
     try:
+        print(f"Bắt đầu lấy dữ liệu cho người dùng: {username}")
         options = uc.ChromeOptions()
         
         # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
@@ -56,56 +61,82 @@ def get_tiktok_data_selenium(username):
         url = f"https://www.tiktok.com/@{username}"
         driver.get(url)
 
-        # Chờ trang tải hoàn tất
-        wait = WebDriverWait(driver, 15)
-        time.sleep(5) 
+        # Chờ trang tải hoàn tất và tìm phần tử chính
+        wait = WebDriverWait(driver, 20) # Tăng thời gian chờ lên 20 giây
         
         # --- LẤY DỮ LIỆU ---
         
-        # Lấy số người theo dõi và lượt thích
         try:
-            # Các XPATH selector có thể thay đổi, bạn có thể cần cập nhật chúng
+            # Chờ phần tử người theo dõi xuất hiện
             followers_element = wait.until(EC.presence_of_element_located((By.XPATH, '//strong[@data-e2e="followers-count"]')))
             data['followers'] = followers_element.text.strip()
             
+            # Chờ phần tử lượt thích xuất hiện
             likes_element = wait.until(EC.presence_of_element_located((By.XPATH, '//strong[@data-e2e="likes-count"]')))
             data['likes'] = likes_element.text.strip()
+
+            print(f"Đã tìm thấy người theo dõi và lượt thích cho {username}.")
+
         except TimeoutException:
-            data['error'] = f"Không tìm thấy phần tử người theo dõi hoặc lượt thích cho {username}."
-        except NoSuchElementException:
-            data['error'] = f"Không tìm thấy phần tử người theo dõi hoặc lượt thích cho {username}."
-            
-        # Cuộn trang để tải tất cả các video
+            # Kiểm tra xem có phải trang không tồn tại hay không
+            try:
+                # Tìm phần tử cho biết trang không tồn tại
+                driver.find_element(By.XPATH, '//div[contains(text(), "Couldn\'t find this account")]')
+                data['error'] = f"Tên người dùng TikTok '{username}' không tồn tại."
+                print(f"Lỗi: Tên người dùng '{username}' không tồn tại.")
+                return data
+            except NoSuchElementException:
+                data['error'] = f"Không tìm thấy phần tử người theo dõi hoặc lượt thích cho {username} (Timeout)."
+                print(f"Lỗi: Không tìm thấy phần tử chính cho '{username}' sau 20s.")
+                return data
+        
+        # --- LẤY DỮ LIỆU VIDEO ---
+        # Cuộn trang cho đến khi không còn nội dung mới được tải
         last_height = driver.execute_script("return document.body.scrollHeight")
-        scroll_limit = 10
-        for i in range(scroll_limit):
+        scroll_count = 0
+        while scroll_count < 15: # Giới hạn cuộn để tránh vòng lặp vô hạn
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(5)
+            time.sleep(3) # Giảm thời gian chờ giữa các lần cuộn
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 break
             last_height = new_height
+            scroll_count += 1
+            print(f"Đã cuộn trang lần thứ {scroll_count} cho {username}. Tổng chiều cao: {new_height}")
         
-        # Tìm tất cả các phần tử video
-        video_elements = driver.find_elements(By.XPATH, '//div[@data-e2e="user-post-item"]//a[contains(@href, "/video/")]')
-        data['video_count'] = len(video_elements)
+        # Chờ tất cả các video tải xong sau khi cuộn
+        try:
+            wait.until(EC.presence_of_all_elements_located((By.XPATH, '//div[@data-e2e="user-post-item"]')))
+            print(f"Đã tải xong các phần tử video cho {username}.")
+        except TimeoutException:
+            print(f"Không thể tìm thấy bất kỳ phần tử video nào cho {username} sau khi cuộn.")
+            
+        # Tìm tất cả các phần tử container video
+        video_containers = driver.find_elements(By.XPATH, '//div[@data-e2e="user-post-item"]')
+        data['video_count'] = len(video_containers)
         
-        if video_elements:
+        if video_containers:
             highest_views = 0
             most_viewed_url = 'Không tìm thấy'
             
-            for video in video_elements:
+            for container in video_containers:
                 try:
-                    views_element = video.find_element(By.CSS_SELECTOR, 'strong[data-e2e="video-views"]')
+                    # Tìm thẻ <a> và thẻ lượt xem bên trong mỗi container
+                    video_link = container.find_element(By.XPATH, './/a[contains(@href, "/video/")]')
+                    views_element = container.find_element(By.XPATH, './/strong[@data-e2e="video-views"]')
+                    
                     views_text = views_element.text.strip()
                     views = parse_views_string(views_text)
                     
                     if views > highest_views:
                         highest_views = views
-                        most_viewed_url = video.get_attribute('href')
+                        most_viewed_url = video_link.get_attribute('href')
                         
+                except NoSuchElementException:
+                    # Bỏ qua nếu không tìm thấy video link hoặc views element trong container này
+                    continue
                 except Exception as e:
-                    print(f"Không thể lấy dữ liệu lượt xem cho một phần tử video: {e}")
+                    print(f"Lỗi khi lấy dữ liệu lượt xem cho một phần tử video: {e}")
                     continue
             
             if highest_views > 0:
@@ -122,6 +153,7 @@ def get_tiktok_data_selenium(username):
     finally:
         if driver:
             driver.quit()
+            print(f"Đã đóng trình duyệt cho {username}.")
     return data
 
 @app.route('/', methods=['GET'])
@@ -132,16 +164,13 @@ def index():
 def get_tiktok_data_api():
     usernames_to_process = []
     
-    # Xử lý nhập liệu từ trường văn bản để tách tên người dùng đúng cách
     usernames_text = request.form.get('usernames')
     if usernames_text:
-        # Tách chuỗi bằng cả dấu phẩy và xuống dòng
         lines = usernames_text.splitlines()
         for line in lines:
             parts = [u.strip() for u in line.split(',') if u.strip()]
             usernames_to_process.extend(parts)
 
-    # Xử lý tệp tải lên
     if 'file' in request.files:
         file = request.files['file']
         if file and file.filename != '' and file.filename.endswith('.txt'):
@@ -156,7 +185,6 @@ def get_tiktok_data_api():
         elif file and file.filename != '':
             return jsonify({'error': 'Vui lòng tải lên tệp .txt hợp lệ.'}), 400
 
-    # Loại bỏ các tên người dùng trùng lặp và rỗng
     usernames_to_process = list(set([re.sub(r'[^a-zA-Z0-9_.]', '', u) for u in usernames_to_process if u]))
 
     if not usernames_to_process:
@@ -167,7 +195,6 @@ def get_tiktok_data_api():
         result = get_tiktok_data_selenium(username)
         results.append(result)
 
-    # TRẢ VỀ MỘT MẢNG JSON CHO TẤT CẢ CÁC KẾT QUẢ
     return jsonify(results)
 
 if __name__ == '__main__':
