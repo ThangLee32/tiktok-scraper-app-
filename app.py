@@ -26,7 +26,7 @@ def parse_views_string(views_str):
     except ValueError:
         return 0
 
-ddef get_tiktok_data_selenium(username):
+def get_tiktok_data_selenium(username):
     """
     Sử dụng Selenium để lấy dữ liệu TikTok bao gồm người theo dõi, lượt thích,
     tổng số video và video có lượt xem cao nhất.
