@@ -1,19 +1,45 @@
+# Sử dụng một image Python cơ bản
 FROM python:3.9-slim
 
-# Cài đặt Chrome và các công cụ cần thiết
+# Cài đặt các gói phụ thuộc hệ thống cần thiết cho Chrome
+# `libglib2.0-0` và `libnss3` thường là những gói chính.
 RUN apt-get update && apt-get install -y \
-    google-chrome-stable \
     wget \
-    unzip && \
-    rm -rf /var/lib/apt/lists/*
+    gnupg \
+    libglib2.0-0 \
+    libnss3 \
+    libgconf-2-4 \
+    libfontconfig1 \
+    libxss1 \
+    libappindicator1 \
+    libasound2 \
+    libpulse0 \
+    libvulkan1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tải và cài đặt Google Chrome
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get install -f -y
+RUN rm google-chrome-stable_current_amd64.deb
+
+# Tạo thư mục làm việc trong container
+WORKDIR /app
+
+# Sao chép các tệp cần thiết vào container
+COPY requirements.txt .
+COPY app.py .
+COPY index.html ./templates/index.html
 
 # Cài đặt các thư viện Python
-COPY requirements.txt /app/requirements.txt
-WORKDIR /app
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy mã nguồn
-COPY . /app
+# Đặt biến môi trường
+ENV PATH="/usr/bin:${PATH}"
+ENV CHROME_EXECUTABLE_PATH="/usr/bin/google-chrome"
+ENV CHROME_DRIVER_PATH="/usr/bin/chromedriver"
 
-# Chạy ứng dụng
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
+# Expose cổng 5000 để Render có thể truy cập
+EXPOSE 5000
+
+# Lệnh khởi động ứng dụng
+CMD ["python", "app.py"]

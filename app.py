@@ -11,9 +11,8 @@ import io
 
 app = Flask(__name__)
 
-# Cấu hình biến môi trường cho Render
-CHROME_EXECUTABLE_PATH = os.environ.get('CHROME_EXECUTABLE_PATH', '/usr/bin/google-chrome')
-CHROME_DRIVER_PATH = os.environ.get('CHROME_DRIVER_PATH')
+# Cấu hình đường dẫn cố định trong môi trường Docker
+CHROME_EXECUTABLE_PATH = '/usr/bin/google-chrome'
 
 def parse_views_string(views_str):
     """
@@ -32,7 +31,8 @@ def parse_views_string(views_str):
 
 def get_tiktok_data_selenium(username):
     """
-    Sử dụng Selenium để lấy dữ liệu TikTok.
+    Sử dụng Selenium để lấy dữ liệu TikTok bao gồm người theo dõi, lượt thích,
+    tổng số video và video có lượt xem cao nhất.
     """
     driver = None
     data = {
@@ -56,21 +56,20 @@ def get_tiktok_data_selenium(username):
         options.add_argument('--disable-gpu') # Bổ sung
         options.add_argument('--disable-extensions') # Bổ sung
         
-        # Chỉ định đường dẫn tới tệp thực thi của Chrome
+        # Chỉ định đường dẫn tới tệp thực thi của Chrome trong container
         options.binary_location = CHROME_EXECUTABLE_PATH
         
-        # Cấu hình driver tùy thuộc vào môi trường
-        if CHROME_DRIVER_PATH:
-            driver = uc.Chrome(options=options, driver_executable_path=CHROME_DRIVER_PATH)
-        else:
-            driver = uc.Chrome(options=options)
+        # undetectable-chromedriver sẽ tự tìm chromedriver tương thích
+        driver = uc.Chrome(options=options)
         
         url = f"https://www.tiktok.com/@{username}"
         driver.get(url)
 
-        wait = WebDriverWait(driver, 30) # Tăng thời gian chờ lên 30s để đảm bảo
+        # Chờ trang tải hoàn tất và tìm phần tử chính
+        wait = WebDriverWait(driver, 30) # Tăng thời gian chờ lên 30s
         
         # --- LẤY DỮ LIỆU ---
+        
         try:
             # Chờ phần tử chứa toàn bộ thông tin
             profile_stats_container = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@data-e2e="user-stats"]')))
@@ -99,12 +98,12 @@ def get_tiktok_data_selenium(username):
                 return data
         
         # --- LẤY DỮ LIỆU VIDEO ---
-        # Cuộn trang để tải thêm video
+        # Cuộn trang cho đến khi không còn nội dung mới được tải
         last_height = driver.execute_script("return document.body.scrollHeight")
         scroll_count = 0
         while scroll_count < 5: # Giảm số lần cuộn để tối ưu hiệu suất và thời gian
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2) # Giảm thời gian chờ
+            time.sleep(2) # Giảm thời gian chờ giữa các lần cuộn
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 break
@@ -121,6 +120,7 @@ def get_tiktok_data_selenium(username):
             
             for container in video_containers:
                 try:
+                    # Tìm thẻ <a> và thẻ lượt xem bên trong mỗi container
                     video_link_element = container.find_element(By.XPATH, './/a[contains(@href, "/video/")]')
                     views_element = container.find_element(By.XPATH, './/strong[@data-e2e="video-views"]')
                     
@@ -132,6 +132,7 @@ def get_tiktok_data_selenium(username):
                         most_viewed_url = video_link_element.get_attribute('href')
                         
                 except NoSuchElementException:
+                    # Bỏ qua nếu không tìm thấy video link hoặc views element trong container này
                     continue
                 except Exception as e:
                     print(f"Lỗi khi lấy dữ liệu lượt xem cho một phần tử video: {e}")
