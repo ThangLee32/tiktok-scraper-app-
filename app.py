@@ -48,15 +48,16 @@ def get_tiktok_data_selenium(username):
     try:
         print(f"Bắt đầu lấy dữ liệu cho người dùng: {username}")
         options = uc.ChromeOptions()
-        
+
         options.add_argument('--headless')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-gpu')
         options.add_argument('--disable-extensions')
-        
+
+        # Chỉ định đường dẫn tới tệp thực thi của Chrome trong container
         options.binary_location = CHROME_EXECUTABLE_PATH
-        
+
         driver = uc.Chrome(options=options)
         
         url = f"https://www.tiktok.com/@{username}"
