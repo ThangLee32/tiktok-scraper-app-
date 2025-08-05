@@ -45,19 +45,23 @@ def get_tiktok_data_selenium(username):  # Sửa lại "ddef" thành "def"
     try:
         print(f"Bắt đầu lấy dữ liệu cho người dùng: {username}")
         options = uc.ChromeOptions()
-
+        
         # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
         options.add_argument('--headless')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
+        
+        # Chỉ định đường dẫn tới tệp thực thi của Chrome trên Render
         options.binary_location = "/usr/bin/google-chrome-stable"
+        
+        # Dòng này phải có cùng cấp thụt lề với các dòng trên
+        driver = uc.Chrome(options=options)
+        
+        url = f"https://www.tiktok.com/@{username}"
+        driver.get(url)
 
-        driver = uc.Chrome(options=options)  # Dòng lỗi đã sửa đúng thụt dòng
-        ...
-    finally:
-        if driver:
-            driver.quit()
-            print(f"Đã đóng trình duyệt cho {username}.")
+        # Chờ trang tải hoàn tất và tìm phần tử chính
+        wait = WebDriverWait(driver, 20)
     return data
 
         driver = uc.Chrome(options=options)
