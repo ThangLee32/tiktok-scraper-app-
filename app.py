@@ -6,6 +6,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 import time
 import os
+import re
+import io
 
 app = Flask(__name__)
 
@@ -127,14 +129,46 @@ def index():
     return render_template('index.html')
 
 @app.route('/get_tiktok_data', methods=['POST'])
-def get_tiktok_data():
-    username = request.form.get('username')
-    if not username:
-        return jsonify({'success': False, 'error': 'Vui lòng cung cấp tên người dùng'})
+def get_tiktok_data_api():
+    usernames_to_process = []
+    
+    # Xử lý nhập liệu từ trường văn bản để tách tên người dùng đúng cách
+    usernames_text = request.form.get('usernames')
+    if usernames_text:
+        # Tách chuỗi bằng cả dấu phẩy và xuống dòng
+        lines = usernames_text.splitlines()
+        for line in lines:
+            parts = [u.strip() for u in line.split(',') if u.strip()]
+            usernames_to_process.extend(parts)
 
-    data = get_tiktok_data_selenium(username)
-    return jsonify(data)
+    # Xử lý tệp tải lên
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename != '' and file.filename.endswith('.txt'):
+            try:
+                stream = io.StringIO(file.stream.read().decode("utf-8"))
+                for line in stream.readlines():
+                    username = line.strip()
+                    if username:
+                        usernames_to_process.append(username)
+            except Exception as e:
+                return jsonify({'error': f'Lỗi khi xử lý tệp: {e}'}), 400
+        elif file and file.filename != '':
+            return jsonify({'error': 'Vui lòng tải lên tệp .txt hợp lệ.'}), 400
+
+    # Loại bỏ các tên người dùng trùng lặp và rỗng
+    usernames_to_process = list(set([re.sub(r'[^a-zA-Z0-9_.]', '', u) for u in usernames_to_process if u]))
+
+    if not usernames_to_process:
+        return jsonify({'error': 'Vui lòng cung cấp ít nhất một tên người dùng qua văn bản hoặc tệp.'}), 400
+
+    results = []
+    for username in usernames_to_process:
+        result = get_tiktok_data_selenium(username)
+        results.append(result)
+
+    # TRẢ VỀ MỘT MẢNG JSON CHO TẤT CẢ CÁC KẾT QUẢ
+    return jsonify(results)
 
 if __name__ == '__main__':
-    # Flask sẽ tự động sử dụng cổng được cung cấp bởi biến môi trường PORT trên Render
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
