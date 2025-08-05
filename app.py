@@ -47,16 +47,14 @@ def get_tiktok_data_selenium(username):
     try:
         import undetected_chromedriver as uc
         options = uc.ChromeOptions()
+        
+        # BẬT CHẾ ĐỘ ẨN DANH (HEADLESS) BẮT BUỘC TRÊN MÁY CHỦ
         options.add_argument('--headless')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
         
-        # Lấy đường dẫn của Chrome từ biến môi trường của buildpack
-        chrome_bin = os.environ.get('GOOGLE_CHROME_BIN')
-        if chrome_bin:
-            options.binary_location = chrome_bin
-        
         driver = uc.Chrome(options=options, use_subprocess=True)
+        
         url = f"https://www.tiktok.com/@{username}"
         driver.get(url)
 
