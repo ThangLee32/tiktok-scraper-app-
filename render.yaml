@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: tiktok-scraper-app-
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "sh start.sh"
+    autoDeploy: false
+    buildpacks:
+      - url: https://github.com/heroku/heroku-buildpack-google-chrome
+      - url: heroku/python
